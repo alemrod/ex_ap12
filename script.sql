@@ -1,55 +1,37 @@
--- 1.2
--- Escreva a seguinte função
--- nome: fn_transferir
--- recebe: código de cliente remetente, código de conta remetente, código de cliente
--- destinatário, código de conta destinatário, valor da transferência
--- devolve: um booleano que indica se a transferência ocorreu ou não. Uma transferência
--- somente pode acontecer se nenhuma conta envolvida ficar no negativo.
-DROP ROUTINE IF EXISTS fn_transferir;
-CREATE OR REPLACE FUNCTION fn_transferir(
-    p_cod_cliente_remetente INT,
-    p_cod_conta_remetente INT,
-    p_cod_cliente_destinatario INT,
-    p_cod_conta_destinatario INT,
-    p_valor_transferencia NUMERIC
-)RETURNS BOOLEAN 
-LANGUAGE plpgsql
-AS $$
+--1.3 Escreva blocos anônimos para testar cada função
+DO $$
 DECLARE
-    v_saldo_remetente NUMERIC;
-    v_saldo_destinatario NUMERIC;
-    v_status_remetente VARCHAR(200);
-    v_status_destinatario VARCHAR(200);
+    v_saldo NUMERIC;
 BEGIN
-    SELECT saldo, status INTO v_saldo_remetente, v_status_remetente
-    FROM tb_conta
-    WHERE cod_cliente = p_cod_cliente_remetente AND cod_conta = p_cod_conta_remetente;
+    v_saldo := fn_consultar_saldo(2, 2);
+    IF v_saldo IS NOT NULL THEN
+        RAISE NOTICE 'Saldo da conta 1 do cliente 1: %', v_saldo;
+    ELSE
+        RAISE NOTICE 'Conta 1 do cliente 1 não encontrada.';
+    END IF;
+END;
+$$
 
-    IF NOT FOUND THEN
-        RETURN FALSE;
-    END IF;
-    SELECT saldo, status INTO v_saldo_destinatario, v_status_destinatario
-    FROM tb_conta
-    WHERE cod_cliente = p_cod_cliente_destinatario AND cod_conta = p_cod_conta_destinatario;
+DO $$
+DECLARE
+    v_result BOOLEAN;
+	p_cod_cliente_remetente INT;
+    p_cod_conta_remetente INT;
+    p_cod_cliente_destinatario INT;
+    p_cod_conta_destinatario INT;
+    p_valor_transferencia NUMERIC;
+BEGIN
+	p_cod_cliente_remetente := 1;
+    p_cod_conta_remetente := 1;
+    p_cod_cliente_destinatario := 2 ;
+    p_cod_conta_destinatario := 2;
+    p_valor_transferencia := 200;
+    SELECT fn_transferir(p_cod_cliente_remetente, p_cod_conta_remetente, p_cod_cliente_destinatario, p_cod_conta_destinatario, p_valor_transferencia) INTO v_result;
 
-    IF NOT FOUND THEN
-        RETURN FALSE;
+    IF v_result THEN
+        RAISE NOTICE 'Transfer successful!';
+    ELSE
+        RAISE NOTICE 'Transfer failed.';
     END IF;
-    IF v_status_remetente != 'aberta' OR v_status_destinatario != 'aberta' THEN
-        RETURN FALSE;
-    END IF;
-    IF v_saldo_remetente < p_valor_transferencia THEN
-        RETURN FALSE;
-    END IF;
-    UPDATE tb_conta
-    SET saldo = saldo - p_valor_transferencia,
-        data_ultima_transacao = CURRENT_TIMESTAMP
-    WHERE cod_cliente = p_cod_cliente_remetente AND cod_conta = p_cod_conta_remetente;
-
-    UPDATE tb_conta
-    SET saldo = saldo + p_valor_transferencia,
-        data_ultima_transacao = CURRENT_TIMESTAMP
-    WHERE cod_cliente = p_cod_cliente_destinatario AND cod_conta = p_cod_conta_destinatario;
-    RETURN TRUE;
 END;
 $$
